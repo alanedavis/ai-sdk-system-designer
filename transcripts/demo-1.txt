@@ -1,0 +1,126 @@
+Product Brainstorm — Recording
+Jun 18, 2026 · 3 participants
+Transcribed by Zoom AI Companion
+
+Maya Chen  00:00:05
+Okay I think we're recording now. Is it recording? The little red thing is on, so. Yeah. Okay we're good.
+
+Dev Patel  00:00:11
+We're good. Sloane you there?
+
+Sloane Rivera  00:00:14
+Yeah, sorry — dog was losing it at the mailman again, classic. Okay. I'm here.
+
+Dev Patel  00:00:19
+Speaking of which —
+
+Sloane Rivera  00:00:20
+Don't.
+
+Dev Patel  00:00:21
+(laughs) Okay, later.
+
+Maya Chen  00:00:25
+So I wanted to just throw a few things at the wall today and see what sticks. I've got like three, Dev's got one, and then whatever Sloane's been cooking up.
+
+Maya Chen  00:00:34
+The one I keep coming back to is a reading buddy for little kids. Like an app that listens to a kid read out loud and gently helps when they get stuck. Not correcting them harshly, just — "hey, try that word again."
+
+Dev Patel  00:00:48
+Oh, that's nice. My niece would lose her mind over that. Does it, like, talk back to them?
+
+Maya Chen  00:00:53
+Yeah, a friendly little character. It follows along, and if they stumble it gives a hint. And it keeps track of which books they've finished, so there's a little shelf that fills up over time.
+
+Sloane Rivera  00:01:04
+Schools would eat that up. But — and I'm just gonna say it now — half these classrooms are running on wifi from like 2009. If it needs a perfect connection to do anything, it's dead on arrival.
+
+Maya Chen  00:01:15
+Right. No, the listening part especially has to run on the device itself. It can't depend on the network.
+
+Dev Patel  00:01:20
+Also, isn't there a whole thing with recording kids' voices? Like, legally?
+
+Maya Chen  00:01:25
+There is — COPPA. We'd have to make sure nothing ever leaves the device. Which honestly lines up with the offline thing anyway.
+
+Sloane Rivera  00:01:33
+Yeah, okay. I'm into this one. This one feels real.
+
+Dev Patel  00:01:36
+Same. I'd build this.
+
+Maya Chen  00:01:39
+Okay, good. Dev — you had the, go ahead.
+
+Dev Patel  00:01:42
+Yeah so, the dog thing. On-demand dog walking. You open the app, someone nearby grabs the walk, and you get the little GPS breadcrumb trail of where they actually took your dog, photos at the end, all that.
+
+Sloane Rivera  00:01:55
+Okay, see, THIS is relevant to my whole mailman situation.
+
+Maya Chen  00:01:58
+How's it different from the ones that already exist though?
+
+Dev Patel  00:02:01
+Honestly the existing ones are clunky and the trust factor is bad. I think the live GPS trail plus same-walker-every-time is the wedge.
+
+Sloane Rivera  00:02:08
+What happens if the dog gets loose, though. Like, who's actually on the hook for that.
+
+Dev Patel  00:02:13
+Yeah, that's the scary part. We'd need insurance baked in, walkers properly vetted. That's not a nice-to-have, that's kind of the whole product.
+
+Maya Chen  00:02:21
+I mean — if you nail the trust piece, you win the category. I'm in. Let's keep this one.
+
+Sloane Rivera  00:02:26
+Yeah, me too. For entirely selfish reasons.
+
+Maya Chen  00:02:29
+Okay, two for two. Sloane, what've you got?
+
+Sloane Rivera  00:02:32
+So mine's a scanner. You point your phone at any product — not just food, anything — and it tells you stuff about it. Recalls, where it's made, whether the company behind it is sketchy, that kind of thing.
+
+Dev Patel  00:02:45
+Hm.
+
+Maya Chen  00:02:46
+...
+
+Dev Patel  00:02:48
+I mean. Doesn't Google Lens kind of already do that? Like, you point it and it just tells you what something is.
+
+Sloane Rivera  00:02:54
+It's more curated than that, it's the whole ethics angle —
+
+Dev Patel  00:02:57
+Sure, sure. No, it could be cool. (pause) What was the other one you had?
+
+Sloane Rivera  00:03:03
+...okay. Noted. (laughs) Fine. Um — the other thing was more of a fun one. A music finder, but for really specific stuff. Like, "find me songs in F minor at 92 BPM." For DJs, producers, people building playlists that actually flow together.
+
+Maya Chen  00:03:18
+Oh, that's kind of cool actually.
+
+Dev Patel  00:03:21
+It is, but I genuinely don't know who's buying that beyond, like, a few thousand bedroom producers. I'm not sure the market's really there.
+
+Sloane Rivera  00:03:28
+Yeah, no — I don't know either, honestly. I just think it'd be neat. I don't really have a case for it.
+
+Maya Chen  00:03:34
+Let's not kill it, but let's not start it either. Park it, circle back once we've actually shipped something?
+
+Sloane Rivera  00:03:40
+Works for me.
+
+Maya Chen  00:03:42
+Okay so. Reading buddy and the dog app are the two we're actually moving on. I'll write up the reading one tonight.
+
+Dev Patel  00:03:49
+I'll start sketching the walker flow.
+
+Sloane Rivera  00:03:51
+And I'll go let my dog back in before he files a formal complaint.
