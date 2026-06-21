@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsx *)",
+      "Bash(find src *)",
+      "Bash(ls *.json *.md)",
+      "Bash(git add *)"
+    ]
+  }
+}
