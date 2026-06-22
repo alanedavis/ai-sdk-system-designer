@@ -97,7 +97,19 @@ NODE_ENV=production npm start
 
 ---
 
-## The API: `extractPitches`
+## Pipeline functions
+
+The pipeline runs as a chain of stages, each a single function in `src/pipeline/` (with its
+schema + `.describe()` annotations in `shared.ts`). Everything past extraction runs on
+**endorsed pitches only** — `rejected`, `parked`, `discussed`, and `proposed` pitches are
+reported as excluded, never fed forward. Each function is explained below alongside
+**representative** output from `demo-1.txt` — the wording varies run to run since it's
+model-generated, but the shape and the status calls are stable.
+
+### `extractPitches`
+
+**Step 1.** Transcript → typed pitches. Overloaded so the return type follows the `mode` you
+pass — `Pitch[]` for minimal, `DetailedPitch[]` for full. _(Sonnet)_
 
 ```ts
 import { extractPitches } from './pipeline/extract';
@@ -109,27 +121,13 @@ const pitches = await extractPitches(transcript);
 const detailed = await extractPitches(transcript, { mode: 'full' });
 ```
 
-The function is overloaded so the return type follows the `mode` you pass — `Pitch[]` for minimal, `DetailedPitch[]` for full.
-
-### Options
-
 | Option         | Type                  | Default     | Description                                                                                                                                   |
 | -------------- | --------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `mode`         | `'minimal' \| 'full'` | `'minimal'` | Level of detail to extract.                                                                                                                    |
 | `model`        | `string`              | `SONNET`    | Anthropic model ID (see `shared.ts`: `SONNET`, `OPUS`, `HAIKU`).                                                                               |
 | `keepRejected` | `boolean`             | `false`     | When `false`, pitches with `status: 'rejected'` are dropped from the result. Only meaningful in `full` mode (minimal pitches have no status). |
 
-> **Note:** `keepRejected` controls *inclusion* at the data layer; the DEV/PROD distinction above controls *verbosity* at the render layer. The demo's detailed pass passes `keepRejected: true` so rejected pitches survive extraction and can be rendered at the bottom.
-
----
-
-## Example output (`demo-1.txt`)
-
-Running the pipeline against the sample transcript. Output is **representative** — the
-wording varies run to run since it's model-generated — but the shape and the status
-calls are stable. As new pipeline functions land, each gets its own subsection here.
-
-### `extractPitches`
+> **Note:** `keepRejected` controls *inclusion* at the data layer; the DEV/PROD distinction controls *verbosity* at the render layer. The demo's detailed pass passes `keepRejected: true` so rejected pitches survive extraction and can be rendered at the bottom.
 
 **Minimal** (`extractPitches(transcript)`) — name + summary for every pitch:
 
@@ -195,9 +193,23 @@ Product Ethics Scanner  [rejected · clear]
 
 ### `deriveRequirements`
 
-**Step 2.** Runs on **endorsed pitches only** and splits one into functional /
-non-functional requirements, with the non-functional list seeded from the pitch's
-`constraint`-typed points (`deriveRequirements(pitch)`):
+**Step 2.** Takes one **endorsed** pitch and splits it into functional / non-functional
+requirements for a localhost prototype, seeding the non-functional list from the pitch's
+`constraint`-typed points (every constraint must surface). Returns `Requirements`
+(`{ functional: string[]; nonFunctional: string[] }`). _(Sonnet)_
+
+```ts
+import { deriveRequirements } from './pipeline/requirements';
+
+// pitch is a DetailedPitch with status: 'endorsed'
+const requirements = await deriveRequirements(pitch);
+```
+
+| Option  | Type     | Default  | Description                                                      |
+| ------- | -------- | -------- | ---------------------------------------------------------------- |
+| `model` | `string` | `SONNET` | Anthropic model ID (see `shared.ts`: `SONNET`, `OPUS`, `HAIKU`). |
+
+Example output for **Reading Buddy**:
 
 ```
 === REQUIREMENTS: Reading Buddy ===
@@ -214,11 +226,23 @@ Non-functional
 
 ### `designArchitecture`
 
-**Step 3.** Pitch + requirements → a deliberately small, localhost-runnable architecture,
-with reasoning tied back to the requirements. It recommends **two** stacks: the prototype
-stack that gets built now on localhost, and a forward-looking **production stack** the
-prototype would graduate to (with notes on what changes — hosting, persistence, auth,
-scale). Defaults to **Opus** (the reasoning-heavy stage). `designArchitecture(pitch, requirements)`:
+**Step 3.** Pitch + requirements → a deliberately small, localhost-runnable architecture
+with reasoning tied back to the requirements. Recommends **two** stacks: the prototype stack
+built now on localhost, and a forward-looking **production stack** the prototype would
+graduate to (with notes on what changes — hosting, persistence, auth, scale). Returns
+`Architecture`. _(Opus — the reasoning-heavy stage)_
+
+```ts
+import { designArchitecture } from './pipeline/design';
+
+const architecture = await designArchitecture(pitch, requirements);
+```
+
+| Option  | Type     | Default | Description                                                      |
+| ------- | -------- | ------- | ---------------------------------------------------------------- |
+| `model` | `string` | `OPUS`  | Anthropic model ID (see `shared.ts`: `SONNET`, `OPUS`, `HAIKU`). |
+
+Example output for **Reading Buddy**:
 
 ```
 ## Architecture
@@ -245,11 +269,23 @@ COPPA constraint still holds at scale.
 ### `buildCodingPrompt`
 
 **Step 4.** The per-pitch deliverable: a single copy-paste-ready prompt for an AI coding
-assistant. The one prose stage — plain `generateText`, **no schema**. The recommended
-prototype stack is a **default, not a lock-in**: the generated prompt instructs the
-assistant to pause, offer the recommended stack plus 1–2 alternatives (with tradeoffs),
-and let the user pick before scaffolding — and to surface the production stack as the
-growth path. `buildCodingPrompt(pitch, requirements, design)`:
+assistant. The one prose stage — plain `generateText`, **no schema**, returns a `string`.
+The recommended prototype stack is a **default, not a lock-in**: the generated prompt tells
+the assistant to pause, offer the recommended stack plus 1–2 alternatives (with tradeoffs),
+let the user pick before scaffolding, and surface the production stack as the growth path.
+_(Sonnet)_
+
+```ts
+import { buildCodingPrompt } from './pipeline/codingPrompt';
+
+const codingPrompt = await buildCodingPrompt(pitch, requirements, architecture);
+```
+
+| Option  | Type     | Default  | Description                                                      |
+| ------- | -------- | -------- | ---------------------------------------------------------------- |
+| `model` | `string` | `SONNET` | Anthropic model ID (see `shared.ts`: `SONNET`, `OPUS`, `HAIKU`). |
+
+Example output for **Reading Buddy**:
 
 ```
 ## Coding prompt
@@ -270,11 +306,21 @@ with a single short hard-coded passage...
 
 ### `buildFromTranscript` (orchestrator)
 
-**Step 5.** Wires every stage into one pass and writes **one Markdown file per accepted
-build** to `builds/` (filename slugged from the pitch name). Each file carries the full
-chain in **DEV** (requirements · architecture · coding prompt) or just the coding prompt in
-**PROD** (`NODE_ENV=production`). The console only carries a short build-plan summary —
-what was written vs. skipped and why.
+**Step 5.** Defined in `main.ts`. Wires every stage into one pass: extract (keeping rejected
+pitches for reporting) → endorsed-only gate → `deriveRequirements` · `designArchitecture` ·
+`buildCodingPrompt` per endorsed pitch (pitches run in parallel; each pitch's chain is
+sequential). Returns `BuildResult` (`{ built: BuildPlan[]; excluded: { name, status }[] }`).
+`main()` then writes **one Markdown file per accepted build** to `builds/` (filename slugged
+from the pitch name) — the full chain in **DEV**, just the coding prompt in **PROD**
+(`NODE_ENV=production`) — and prints a short build-plan summary of what was written vs. skipped.
+
+```ts
+const { built, excluded } = await buildFromTranscript(transcript);
+// built:    one BuildPlan per endorsed pitch (pitch · requirements · architecture · codingPrompt)
+// excluded: rejected / parked / discussed / proposed pitches, with their status
+```
+
+Console summary:
 
 ```
 === BUILD PLAN ===
@@ -288,12 +334,6 @@ Skipped (2):
 
 ---
 
-## How it works
-
-`extractPitches` makes a single `generateText` call (Vercel AI SDK) with `Output.object`, constraining the model to a Zod schema (`{ pitches: Pitch[] }`). The schema and its `.describe()` annotations — defined in `shared.ts` — double as instructions to the model, so the structure and the guidance stay in one place. A detailed system prompt teaches the model how to infer `status` from group dynamics rather than surface wording.
-
----
-
 ## Tech stack
 
 - [Vercel AI SDK](https://sdk.vercel.ai) (`ai`) — `generateText` + structured output
@@ -303,19 +343,71 @@ Skipped (2):
 
 ---
 
-## Roadmap
+## Future plans
 
-The pipeline is structured as numbered steps (see `main.ts`). Everything past Step 1 runs
-on **endorsed pitches only** — `rejected`, `parked`, `discussed`, and `proposed` pitches
-are reported as excluded, never fed forward. Each stage is one file under `src/pipeline/`
-exporting one function, with its schema + `.describe()` annotations in `shared.ts`.
+Same pipeline shape, one stage earlier. Today the pipeline starts from a text transcript;
+the plan is to start from the **raw recording** and produce that transcript ourselves using
+the AI SDK's [transcription support](https://sdk.vercel.ai/docs/ai-sdk-core/transcription)
+(`experimental_transcribe`), so a meeting recording can go end-to-end without a manual
+export step.
 
-- [x] **Step 1 — Extract Pitches** (`extract.ts`) — transcript → typed pitches.
-- [x] **Step 2 — Derive Requirements** (`requirements.ts`) — endorsed pitch → functional / non-functional requirements. _(Sonnet)_
-- [x] **Step 3 — Design Architecture** (`design.ts`) — pitch + requirements → small localhost-runnable prototype stack **+ a recommended production stack** to graduate to, with reasoning. _(Opus — reasoning-heavy)_
-- [x] **Step 4 — Build Coding Prompt** (`codingPrompt.ts`) — the one prose stage; plain `generateText`, no schema. Prompts the pasted-into AI to let the user pick a stack before building. _(Sonnet)_
-- [x] **Step 5 — Orchestrate** (`main.ts`) — `buildFromTranscript()`: extract → endorsed-only gate → requirements · design · prompt per pitch, then writes one Markdown file per accepted build to `builds/`.
+### `transcribeAudio` (planned · 🚧 not implemented)
 
-**Later (not scheduled):** provenance / sign-off UI (`sourceQuotes` already captured),
-confidence-based filtering, and real-time during-the-call extraction (deliberately
-de-scoped — the pipeline is batch-only).
+**Step 0.** Audio file → a speaker-attributed transcript in the same `Speaker  HH:MM:SS`
+shape `extractPitches` already consumes, then hands straight off to **Step 1**. Returns a
+`string` (the formatted transcript).
+
+> **Reality check:** `experimental_transcribe` returns `text` plus timestamped `segments`
+> (`{ text, startSecond, endSecond }`), `language`, and `durationInSeconds` — but **plain
+> Whisper gives no speaker labels**, so it can't reproduce the Zoom `Speaker` attribution on
+> its own. To recover "who spoke," this stage targets a **diarization-capable provider**
+> (AssemblyAI / Deepgram / Gladia) via `providerOptions`, then folds the diarized segments
+> into the line format. Anthropic has no speech-to-text model, so this is the first stage
+> that reaches for a second provider.
+
+```ts
+import { experimental_transcribe as transcribe } from 'ai';
+import { assemblyai } from '@ai-sdk/assemblyai';
+import { readFile } from 'node:fs/promises';
+
+// Planned wrapper — formats diarized segments into the transcript shape Step 1 expects.
+export async function transcribeAudio(
+  path: string,
+  opts: { model?: string; diarize?: boolean; language?: string } = {},
+): Promise<string> {
+  const { text, segments } = await transcribe({
+    model: assemblyai.transcription(opts.model ?? 'best'),
+    audio: await readFile(path),
+    providerOptions: { assemblyai: { speakerLabels: opts.diarize ?? true } },
+  });
+  // → join diarized segments into "Speaker  HH:MM:SS\n<turn>" blocks
+  return formatAsTranscript(text, segments);
+}
+
+// End-to-end: recording → transcript → pitches
+const transcript = await transcribeAudio('recordings/brainstorm.m4a');
+const pitches = await extractPitches(transcript, { mode: 'full' });
+```
+
+| Option     | Type      | Default        | Description                                                                                                  |
+| ---------- | --------- | -------------- | ------------------------------------------------------------------------------------------------------------ |
+| `model`    | `string`  | `'best'`       | Transcription model on a diarization-capable provider (Anthropic has no STT model, so Step 0 brings its own). |
+| `diarize`  | `boolean` | `true`         | Attribute each turn to a speaker, reproducing the `Speaker  HH:MM:SS` format Step 1 expects.                  |
+| `language` | `string`  | _(autodetect)_ | Optional ISO language hint; otherwise inferred from `result.language`.                                       |
+
+Example output (what Step 0 would hand to `extractPitches`):
+
+```
+Product Brainstorm — Recording
+Transcribed by AI SDK (experimental_transcribe)
+
+Speaker A  00:00:05
+Okay I think we're recording now. Is it recording? Yeah. Okay we're good.
+
+Speaker B  00:00:11
+We're good. Sloane you there?
+```
+
+> Speaker labels arrive as generic `Speaker A` / `Speaker B` from diarization; mapping them
+> to real names (when the recording doesn't announce them) stays out of scope — `extractPitches`
+> already works without relying on speaker turns.
