@@ -1,2 +1,6 @@
 /node_modules
 .env
+.claude
+
+# Generated output — see demo-builds/ for a sample run
+/builds
