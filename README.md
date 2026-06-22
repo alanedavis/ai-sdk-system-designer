@@ -33,7 +33,8 @@ Given a transcript like `transcripts/demo-1.txt` — exported in **Zoom AI Compa
 │       └── shared.ts          # Model IDs + Zod schemas (pitch / requirements / architecture) and types
 ├── transcripts/
 │   └── demo-1.txt             # Sample brainstorm transcript (Zoom AI Companion format)
-├── builds/                    # Generated — one Markdown file per accepted build
+├── builds/                    # Generated — one Markdown file per accepted build (gitignored)
+├── demo-builds/               # Committed sample run of demo-1.txt (DEV mode)
 ├── package.json
 ├── tsconfig.json
 └── README.md
