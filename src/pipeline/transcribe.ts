@@ -1,5 +1,5 @@
 import { AssemblyAI } from 'assemblyai';
-import { ASSEMBLYAI_MODEL } from './shared';
+import { ASSEMBLYAI_MODELS } from './shared';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 0 — TRANSCRIBE
@@ -16,8 +16,8 @@ import { ASSEMBLYAI_MODEL } from './shared';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface Options {
-  /** Transcription model tier on AssemblyAI (default `'best'`). */
-  model?: string;
+  /** Preference-ordered transcription models on AssemblyAI (default `ASSEMBLYAI_MODELS`). */
+  models?: readonly string[];
   /** Attribute each turn to a speaker (default `true`). */
   diarize?: boolean;
   /** Hint for how many distinct speakers to expect — improves diarization. */
@@ -59,7 +59,7 @@ export function formatAsTranscript(utterances: Utterance[]): string {
 // Audio file → formatted transcript. End-to-end: recording → transcript → pitches.
 // ─────────────────────────────────────────────────────────────────────────────
 export async function transcribeAudio(path: string, opts: Options = {}): Promise<string> {
-  const { model = ASSEMBLYAI_MODEL, diarize = true, speakersExpected, language } = opts;
+  const { models = ASSEMBLYAI_MODELS, diarize = true, speakersExpected, language } = opts;
 
   const apiKey = process.env.ASSEMBLYAI_API_KEY;
   if (!apiKey) {
@@ -74,7 +74,7 @@ export async function transcribeAudio(path: string, opts: Options = {}): Promise
   // `audio` accepts a local file path; the SDK uploads it and polls until completion.
   const transcript = await client.transcripts.transcribe({
     audio: path,
-    speech_model: model as 'best' | 'nano' | 'slam-1' | 'universal',
+    speech_models: models as string[],
     speaker_labels: diarize,
     ...(speakersExpected ? { speakers_expected: speakersExpected } : {}),
     ...(language ? { language_code: language } : {}),

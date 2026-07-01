@@ -8,26 +8,33 @@ Built on the [Vercel AI SDK](https://sdk.vercel.ai) with Anthropic's Claude mode
 
 ## The idea-refiner flow
 
-The headline flow goes **recording → soul → build plan**, in four moves:
+The headline flow goes **recording → soul → build plan** — and in Claude Code it's a **single skill**, `/refine-build-plan`, that runs the whole thing, pausing only for the grill:
 
 ```
   🎙  record on one mic            recordings/brainstorm.m4a
         │
-   /refine-idea   (npm run refine) ── transcribe (diarized) → extract ideas → draft the soul
-        │                              writes → refine/transcript.txt · pitches.json · soul-draft.md
-        ▼
-  /grill-with-docs  ──────────────── interrogate the draft one idea at a time until the soul is sharp
-        │                              you write → refine/soul-final.md
-        ▼
-  /plan-from-soul  (npm run build-plan) ── requirements → architecture → coding prompt, per idea
-        │                              writes → builds/<idea>.md
+ ┌──────┴─────────────────────────────────────────────────────────────────────┐
+ │ /refine-build-plan  (one skill, end to end)                                  │
+ │                                                                              │
+ │   1 · refine   (npm run refine) ── transcribe (diarized) → extract → draft   │
+ │                                    writes → refine/transcript.txt ·          │
+ │                                             pitches.json · soul-draft.md      │
+ │                                                                              │
+ │   2 · grill    ── interrogate the draft one idea at a time until the soul is  │
+ │                   sharp; recap, confirm no open questions remain             │
+ │                                    writes → refine/soul-final.md             │
+ │                                                                              │
+ │   3 · build  (npm run build-plan) ── requirements → architecture → coding    │
+ │                                      prompt, per endorsed idea               │
+ │                                    writes → builds/<idea>.md                 │
+ └──────┬─────────────────────────────────────────────────────────────────────┘
         ▼
   📦  one build plan per endorsed idea
 ```
 
-**"Soul"** = the human/business core the feature list alone never captures: the **why** (the problem it kills), the **who** (who it's for, and who it's *not*), whether and how to **monetize**, a rough **cost**, the **features** that serve the why, and the **open questions** worth grilling. It's auto-drafted, then sharpened by you in a `/grill-with-docs` session — the draft carries baked-in instructions so the grill knows exactly what to attack.
+**"Soul"** = the human/business core the feature list alone never captures: the **why** (the problem it kills), the **who** (who it's for, and who it's *not*), whether and how to **monetize**, a rough **cost**, the **features** that serve the why, and the **open questions** worth grilling. It's auto-drafted in stage 1, then sharpened by you in the grill — the draft carries baked-in instructions so the grill knows exactly what to attack.
 
-The three CLI steps hand off through files at **fixed paths** under `refine/` (defined in [`src/paths.ts`](src/paths.ts)), so each skill always knows where to read and write — no arguments to thread between runtimes.
+The skill wraps two engines — `npm run refine` (stages 0–1.5) and `npm run build-plan` (stages 2–4) — with the interactive grill in between. They hand off through files at **fixed paths** under `refine/` (defined in [`src/paths.ts`](src/paths.ts)), so each stage always knows where to read and write — no arguments to thread between runtimes. You can also run the two engines by hand (see [Run](#4-run) below) if you'd rather grill on your own.
 
 > You can also skip the recording and run the **original transcript-first pipeline** directly (`npm start`) — see [What the extraction does](#what-the-extraction-does) below.
 
@@ -67,8 +74,7 @@ Everything past extraction runs on **endorsed pitches only**.
 │       ├── codingPrompt.ts    # Step 4   — buildCodingPrompt()
 │       └── shared.ts          # Model IDs + Zod schemas (pitch / soul / requirements / architecture)
 ├── .claude/skills/
-│   ├── refine-idea/           # Skill — drives the record → soul-draft half
-│   └── plan-from-soul/        # Skill — drives the soul → build half
+│   └── refine-build-plan/     # Skill — the whole flow end to end (refine → grill → build)
 ├── transcripts/
 │   └── demo-1.txt             # Sample brainstorm transcript (Zoom AI Companion format)
 ├── recordings/                # Your raw audio (gitignored) — drop recordings here
@@ -113,13 +119,19 @@ ASSEMBLYAI_API_KEY=...          # only needed for `npm run refine` (Step 0 trans
 
 **The idea-refiner flow** (recording → build plan):
 
-```bash
-npm run refine recordings/brainstorm.m4a   # Step 0–1.5: transcribe → extract → draft the soul
-#   … then run /grill-with-docs to sharpen the soul into refine/soul-final.md …
-npm run build-plan                          # Step 2–4: soul → requirements · architecture · coding prompt
+In Claude Code, run the single skill and it does everything, pausing only for the grill:
+
+```
+/refine-build-plan recordings/brainstorm.m4a
 ```
 
-In Claude Code, the two skills wrap those commands and manage the handoff: **`/refine-idea`** → **`/grill-with-docs`** → **`/plan-from-soul`**.
+Prefer the CLI, or want to grill on your own? Run the two engines by hand with a manual grill in between:
+
+```bash
+npm run refine recordings/brainstorm.m4a   # Step 0–1.5: transcribe → extract → draft the soul
+#   … grill the draft yourself, writing the sharpened soul to refine/soul-final.md …
+npm run build-plan                          # Step 2–4: soul → requirements · architecture · coding prompt
+```
 
 **The transcript-first flow** (skip the recording):
 
@@ -275,8 +287,8 @@ Product Ethics Scanner  [rejected · clear]
 ### `deriveSoul`
 
 **Step 1.5.** Takes one **endorsed** pitch and drafts its **soul** — the human and business
-core beneath the feature list. This is the auto-drafted starting point a `/grill-with-docs`
-session then interrogates. Returns `Soul`
+core beneath the feature list. This is the auto-drafted starting point the grill (inside
+`/refine-build-plan`) then interrogates. Returns `Soul`
 (`{ purpose, audience, monetization, cost, features, openQuestions }`). Deliberately
 opinionated, not diplomatic — a hedged draft is a failed draft. _(Opus — the reasoning-heavy
 stage, like `designArchitecture`)_
@@ -313,7 +325,7 @@ openQuestions — Can on-device ASR actually hit usable accuracy on kids' voices
 ```
 
 The `refine` step renders every endorsed idea's soul into `refine/soul-draft.md`, led by a
-baked-in instruction header so `/grill-with-docs` knows to interrogate purpose → audience →
+baked-in instruction header so the grill step knows to interrogate purpose → audience →
 monetization → cost → features and attack the open questions. The grilled result is saved to
 `refine/soul-final.md`, which the build step folds into `deriveRequirements` as `context`.
 
@@ -473,7 +485,7 @@ Skipped (2):
 - [`assemblyai`](https://www.npmjs.com/package/assemblyai) — speech-to-text + diarization for Step 0 (the one non-AI-SDK stage; see [`transcribeAudio`](#transcribeaudio) for why)
 - [Zod](https://zod.dev) — schema definition + inferred TypeScript types
 - [`tsx`](https://github.com/privatenumber/tsx) — run TypeScript directly, no build step
-- Two Claude Code **skills** (`.claude/skills/`) — `refine-idea` and `plan-from-soul` — that wrap the CLI steps and manage the handoff to `/grill-with-docs`
+- A Claude Code **skill** (`.claude/skills/refine-build-plan`) that runs the whole flow end to end — wrapping the `npm run refine` and `npm run build-plan` engines around the interactive grill
 
 ---
 
@@ -486,7 +498,8 @@ The recording → soul → build-plan flow is in place. Natural next steps:
   for now — `extractPitches` doesn't rely on speaker turns.
 - **Soul across ideas** — today `deriveSoul` runs per endorsed pitch; a brainstorm-level pass
   could spot when two "ideas" are really one product, or surface a shared thesis.
-- **Grill → build in one skill** — `/refine-idea` and `/plan-from-soul` are split so the human
-  grilling sits cleanly in the middle; if the grill ever runs headless, they could merge.
 - **Round-trip the grilled soul** — feed `soul-final.md` back into `deriveSoul` context so a
   re-run sharpens rather than redrafts.
+- **Fully headless grill** — `/refine-build-plan` already runs the whole flow in one skill,
+  but the interview is still interactive by design; a headless mode could auto-answer low-stakes
+  questions and only stop for the ones that genuinely need a human call.

@@ -6,8 +6,10 @@ export const OPUS = 'claude-opus-4-8';
 export const HAIKU = 'claude-haiku-4-5'
 
 // Transcription (Step 0) — Anthropic has no STT model, so this stage brings its own
-// provider. AssemblyAI is the diarization-capable choice; 'best' is its top model tier.
-export const ASSEMBLYAI_MODEL = 'best';
+// provider. AssemblyAI is the diarization-capable choice. The `speech_model` param is
+// deprecated; the API now takes `speech_models` as a preference-ordered array. We list
+// the top tier first and fall back to universal-2 for coverage.
+export const ASSEMBLYAI_MODELS = ['universal-3-pro', 'universal-2'] as const;
 
 // Schemas
 export const POINT = z.object({
@@ -45,7 +47,7 @@ export const FULL_PITCH_SCHEMA = BASE_PITCH_SCHEMA.extend({
 //
 // Between extraction and requirements: take one endorsed pitch and draft its SOUL — the
 // human, business, and product core that a build plan alone never captures. This is the
-// auto-drafted starting point a /grill-with-docs session then interrogates and sharpens.
+// auto-drafted starting point the grill step (in /refine-build-plan) interrogates and sharpens.
 export const SOUL_SCHEMA = z.object({
   purpose: z
     .string()

@@ -23,7 +23,7 @@ async function readSoul(): Promise<string> {
     const draft = await readFile(SOUL_DRAFT_PATH, 'utf8');
     console.log(
       `No ${SOUL_FINAL_PATH} yet — falling back to the un-grilled draft (${SOUL_DRAFT_PATH}).\n` +
-        '  Tip: run /grill-with-docs first to sharpen the soul before building.',
+        '  Tip: grill the soul first (the /refine-build-plan skill does this) to sharpen it before building.',
     );
     return draft;
   }

@@ -11,3 +11,4 @@
 # Recordings (raw audio) and the refine flow's generated artifacts
 /recordings
 /refine
+/transcripts
