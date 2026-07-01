@@ -27,10 +27,13 @@ export const GRILL_HEADER = `<!-- Auto-drafted by \`npm run refine\`. This is a 
 
 # Idea Soul — Draft
 
-> **Grilling this draft?** Interrogate it one idea at a time, in this order:
-> **purpose → audience → monetization → cost → features**, recommending an answer at each
-> step, then attack the open questions listed under each idea. As decisions harden, write
-> the sharpened version to \`${SOUL_FINAL_PATH}\` using the same structure. When the soul is
+> **Grilling this draft?** First force a cohesive core: make the idea *be one thing* a brand
+> could stand on — if it's loose or tries to do everything, grill it into a single identity
+> before anything else. Then interrogate one idea at a time, in this order:
+> **identity → purpose → audience → monetization → cost → features**, recommending an answer at
+> each step, then attack the open questions listed under each idea. As decisions harden, write
+> the sharpened version to \`${SOUL_FINAL_PATH}\` using the same structure, leading each idea with
+> a crisp identity line (what it is, for whom, the one thing that makes it it). When the soul is
 > solid and no open questions remain, continue straight to the build plan (\`npm run build-plan\`).
 `;
 

@@ -1,6 +1,6 @@
 ---
 name: refine-build-plan
-description: Turn a brainstorm recording into build plans, end to end, in one skill. Transcribes the audio (diarized), extracts the distinct ideas, drafts the "soul" of each (why it exists, who it's for, whether to monetize, rough cost, features), grills that soul with you until it's sharp, then generates a per-idea build plan. Use when the user wants to refine a recorded idea, process an audio brainstorm, "refine this recording", turn a recording into a build plan, or runs /refine-build-plan.
+description: Turn a brainstorm recording into build plans, end to end, in one skill. Transcribes the audio (diarized), extracts the distinct ideas, drafts the "soul" of each (why it exists, who it's for, whether to monetize, rough cost, features), grills that soul — and its brand identity — with you until the idea is sharp and cohesive, then generates a per-idea build plan. Use when the user wants to refine a recorded idea, process an audio brainstorm, "refine this recording", turn a recording into a build plan, or runs /refine-build-plan.
 ---
 
 <what-to-do>
@@ -19,9 +19,13 @@ Then **read `refine/soul-draft.md`** and give a short, honest summary of each en
 
 ### 3. Grill — sharpen the soul interactively
 
-Interview the user relentlessly about the draft until you reach shared understanding. Work one idea at a time in the draft's baked-in order — **purpose → audience → monetization → cost → features** — then attack the open questions listed under each idea. For each question, provide your recommended answer. **Ask one question at a time, waiting for feedback before continuing.** If a question can be answered by exploring the codebase, explore instead. See **During the grill** below for how to sharpen language and update docs.
+Interview the user relentlessly about the draft until you reach shared understanding. Work one idea at a time.
 
-As decisions harden, write the sharpened version to `refine/soul-final.md` using the same structure as the draft. This file is what makes the grill count — the build reads it (falling back to the draft if it's absent).
+**First, force a cohesive core.** Before the soul dimensions are worth grilling, the idea has to *be one thing* — a direction a brand could stand on, not a pile of features. Make the user say, in one sentence a stranger could repeat, what this is and the single thing that makes it *it*. If the idea is loose, sprawling, or "it does a bit of everything," that is the first thing to grill — don't let it slide to keep the conversation pleasant. See **Force a cohesive core (brand identity)** below.
+
+**Then** work the draft's baked-in order — **identity → purpose → audience → monetization → cost → features** — and attack the open questions listed under each idea. For each question, provide your recommended answer. **Ask one question at a time, waiting for feedback before continuing.** If a question can be answered by exploring the codebase, explore instead. See **During the grill** below for how to sharpen language and update docs.
+
+As decisions harden, write the sharpened version to `refine/soul-final.md` using the same structure as the draft, leading each idea with a crisp **identity line** (what it is, for whom, and the one thing that makes it *it*). This file is what makes the grill count — the build reads it (falling back to the draft if it's absent), so a sharpened identity flows into the requirements, not just a sharpened feature list.
 
 **When the interview converges** — you have no more sharp questions and `refine/soul-final.md` is written:
 
@@ -41,7 +45,8 @@ Then **report the result**: summarize what was written to `builds/` vs. skipped 
 - The flow is one command from a recording: **record → `/refine-build-plan`**. It pauses only for the interactive grill in step 3 — everything else is automated.
 - Fixed artifact paths (defined in `src/paths.ts`): `refine/transcript.txt`, `refine/pitches.json`, `refine/soul-draft.md`, and — after grilling — `refine/soul-final.md`. The two engines hand off through these, so there are no arguments to thread between the transcribe/extract half and the build half.
 - The soul draft is a *starting point*, not a spec. It's deliberately opinionated so the grill has something concrete to attack.
-- "Soul" = the human/business core: **why** it exists, **who** it's for, whether/how to **monetize**, rough **cost**, and the **features** that serve the why — plus open questions to grill.
+- "Soul" = the human/business core: the **identity** (the one cohesive thing it is), **why** it exists, **who** it's for, whether/how to **monetize**, rough **cost**, and the **features** that serve the why — plus open questions to grill.
+- Direction is two things at once: a sound **architecture** *and* a cohesive **brand identity**. A build plan on a loose, everything-to-everyone idea is a fast way to build the wrong thing — grill the idea into one identity before pointing it at a stack.
 - The grilled soul is passed to `deriveRequirements` as `context`, so decisions sharpened during grilling (a narrowed audience, a dropped feature, a monetization call) flow into the requirements rather than the raw pitch alone.
 - Only *endorsed* ideas are built; the rest are reported as skipped with their status.
 
@@ -62,6 +67,17 @@ While exploring the codebase, look for existing documentation. Most repos have a
 ```
 
 If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts and the map points to where each one lives (each with its own `CONTEXT.md` and `docs/adr/`). Create files lazily — only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. If no `docs/adr/` exists, create it when the first ADR is needed.
+
+### Force a cohesive core (brand identity)
+
+Architecture is only half the direction — the idea also needs a **cohesive identity** a brand could be built on. Point people not just toward a sound stack but toward *one recognizable thing*. Refuse to move past a loose or over-broad idea; grill it into a center of gravity first. Watch for these smells and name them out loud:
+
+- **Kitchen sink** — "it does X *and* Y *and* Z." Ask which one is the spine; the rest are features or later spin-offs, not the identity. Two unrelated cores means two products — make them pick one or split it.
+- **No center of gravity** — every answer is "depends who's using it." Force a *primary* audience and a *primary* job. A brand can't point at everyone.
+- **Me-too framing** — "like [big app] but…". Make them finish the sentence with the single difference that would make someone switch. If there isn't one, the identity is missing — that's the gap, not the feature set.
+- **Adjective soup** — "simple, powerful, fun, enterprise-grade." Make them keep the one adjective the product would die defending; the rest is noise.
+
+Push until you can state a crisp **identity line** — what it is, for whom, and the one thing that makes it *it* — plus a working name or tagline if one emerges. Then cut any feature that doesn't serve that line; scope that fights the identity is what you grill *out*, not preserve. If the user insists the breadth genuinely *is* the point, don't paper over it — say so plainly and record it as a deliberate trade-off (often ADR-worthy), so the build reflects a chosen bet rather than an unresolved blur.
 
 ### Challenge against the glossary
 
