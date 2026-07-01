@@ -3,11 +3,14 @@
   "scripts": {
     "start": "tsx --env-file=.env src/main.ts",
     "dev": "tsx watch --env-file=.env src/main.ts",
+    "refine": "tsx --env-file=.env src/refine.ts",
+    "build-plan": "tsx --env-file=.env src/build.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.85",
     "ai": "^6.0.208",
+    "assemblyai": "^4.35.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {

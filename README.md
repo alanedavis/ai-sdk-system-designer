@@ -1,14 +1,41 @@
 # AI SDK System Designer
 
-Turn a messy brainstorm transcript into a structured list of **project pitches** — each with where the group landed, how confident the proposer was, the concrete points raised, and the verbatim quotes that justify the call.
+An **idea refiner**. Record a brainstorm on a single mic — with your partner, a friend, anyone — talk for as long as you want, then let the pipeline transcribe it, pull out the distinct ideas, **find the soul of each one** (why it exists, who it's for, whether to monetize, what it costs, what it does), grill that soul with you until it's sharp, and only then turn it into a concrete build plan.
 
-Built on the [Vercel AI SDK](https://sdk.vercel.ai) with Anthropic's Claude models, using structured (schema-constrained) output so every result is typed end to end.
+Built on the [Vercel AI SDK](https://sdk.vercel.ai) with Anthropic's Claude models, using structured (schema-constrained) output so every result is typed end to end. Speech-to-text is the one exception — Anthropic has no STT model, so Step 0 brings its own diarization-capable provider ([AssemblyAI](https://www.assemblyai.com)).
 
 ---
 
-## What it does
+## The idea-refiner flow
 
-Given a transcript like `transcripts/demo-1.txt` — exported in **Zoom AI Companion** transcription format (a header block followed by `Speaker  HH:MM:SS` timestamped turns) — the pipeline identifies each distinct project idea discussed and extracts it in one of two levels of detail:
+The headline flow goes **recording → soul → build plan**, in four moves:
+
+```
+  🎙  record on one mic            recordings/brainstorm.m4a
+        │
+   /refine-idea   (npm run refine) ── transcribe (diarized) → extract ideas → draft the soul
+        │                              writes → refine/transcript.txt · pitches.json · soul-draft.md
+        ▼
+  /grill-with-docs  ──────────────── interrogate the draft one idea at a time until the soul is sharp
+        │                              you write → refine/soul-final.md
+        ▼
+  /plan-from-soul  (npm run build-plan) ── requirements → architecture → coding prompt, per idea
+        │                              writes → builds/<idea>.md
+        ▼
+  📦  one build plan per endorsed idea
+```
+
+**"Soul"** = the human/business core the feature list alone never captures: the **why** (the problem it kills), the **who** (who it's for, and who it's *not*), whether and how to **monetize**, a rough **cost**, the **features** that serve the why, and the **open questions** worth grilling. It's auto-drafted, then sharpened by you in a `/grill-with-docs` session — the draft carries baked-in instructions so the grill knows exactly what to attack.
+
+The three CLI steps hand off through files at **fixed paths** under `refine/` (defined in [`src/paths.ts`](src/paths.ts)), so each skill always knows where to read and write — no arguments to thread between runtimes.
+
+> You can also skip the recording and run the **original transcript-first pipeline** directly (`npm start`) — see [What the extraction does](#what-the-extraction-does) below.
+
+---
+
+## What the extraction does
+
+Given a transcript — either produced by Step 0 or dropped in as text like `transcripts/demo-1.txt` (**Zoom AI Companion** format: a header block followed by `Speaker  HH:MM:SS` timestamped turns) — the pipeline identifies each distinct project idea discussed and extracts it in one of two levels of detail:
 
 - **Minimal** — just the pitch `name` and a one–two sentence `summary`. A fast sanity pass.
 - **Full** — everything in minimal, plus:
@@ -17,6 +44,8 @@ Given a transcript like `transcripts/demo-1.txt` — exported in **Zoom AI Compa
   - **points** — the distinct things raised, each typed as `feature` · `constraint` · `question` · `tangent`.
   - **sourceQuotes** — the verbatim line(s) that justify the status call.
 
+Everything past extraction runs on **endorsed pitches only**.
+
 ---
 
 ## Project layout
@@ -24,15 +53,26 @@ Given a transcript like `transcripts/demo-1.txt` — exported in **Zoom AI Compa
 ```
 .
 ├── src/
-│   ├── main.ts                # Step 5 — buildFromTranscript() orchestrator + Markdown export
+│   ├── refine.ts              # CLI — record → soul draft   (npm run refine <audio>)
+│   ├── build.ts               # CLI — grilled soul → builds (npm run build-plan)
+│   ├── main.ts                # CLI — transcript → builds   (npm start), the original flow
+│   ├── plan.ts                # Shared build pipeline + Markdown export (used by main.ts & build.ts)
+│   ├── paths.ts               # Fixed artifact paths for the refine → grill → build handoff
 │   └── pipeline/
-│       ├── extract.ts         # Step 1 — extractPitches()
-│       ├── requirements.ts    # Step 2 — deriveRequirements()
-│       ├── design.ts          # Step 3 — designArchitecture()
-│       ├── codingPrompt.ts    # Step 4 — buildCodingPrompt()
-│       └── shared.ts          # Model IDs + Zod schemas (pitch / requirements / architecture) and types
+│       ├── transcribe.ts      # Step 0   — transcribeAudio()      (AssemblyAI, diarized)
+│       ├── extract.ts         # Step 1   — extractPitches()
+│       ├── soul.ts            # Step 1.5 — deriveSoul()
+│       ├── requirements.ts    # Step 2   — deriveRequirements()
+│       ├── design.ts          # Step 3   — designArchitecture()
+│       ├── codingPrompt.ts    # Step 4   — buildCodingPrompt()
+│       └── shared.ts          # Model IDs + Zod schemas (pitch / soul / requirements / architecture)
+├── .claude/skills/
+│   ├── refine-idea/           # Skill — drives the record → soul-draft half
+│   └── plan-from-soul/        # Skill — drives the soul → build half
 ├── transcripts/
 │   └── demo-1.txt             # Sample brainstorm transcript (Zoom AI Companion format)
+├── recordings/                # Your raw audio (gitignored) — drop recordings here
+├── refine/                    # Generated — transcript · pitches.json · soul-draft/final.md (gitignored)
 ├── builds/                    # Generated — one Markdown file per accepted build (gitignored)
 ├── demo-builds/               # Committed sample run of demo-1.txt (DEV mode)
 ├── package.json
@@ -64,19 +104,32 @@ cp .env.example .env
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
+ASSEMBLYAI_API_KEY=...          # only needed for `npm run refine` (Step 0 transcription)
 ```
 
-`.env` is gitignored and loaded automatically at startup via Node's native `--env-file` (wired into the npm scripts) — no `dotenv` dependency required.
+`.env` is gitignored and loaded automatically at startup via Node's native `--env-file` (wired into the npm scripts) — no `dotenv` dependency required. The `ASSEMBLYAI_API_KEY` ([get one here](https://www.assemblyai.com/dashboard/api-keys)) is only consulted by Step 0; the transcript-first flow (`npm start`) needs just the Anthropic key.
 
 ### 4. Run
 
+**The idea-refiner flow** (recording → build plan):
+
 ```bash
-npm start          # run once
+npm run refine recordings/brainstorm.m4a   # Step 0–1.5: transcribe → extract → draft the soul
+#   … then run /grill-with-docs to sharpen the soul into refine/soul-final.md …
+npm run build-plan                          # Step 2–4: soul → requirements · architecture · coding prompt
+```
+
+In Claude Code, the two skills wrap those commands and manage the handoff: **`/refine-idea`** → **`/grill-with-docs`** → **`/plan-from-soul`**.
+
+**The transcript-first flow** (skip the recording):
+
+```bash
+npm start          # read transcripts/demo-1.txt → builds/
 npm run dev        # watch mode — re-runs on file changes
 npm run typecheck  # tsc --noEmit, no run
 ```
 
-By default the demo reads `transcripts/demo-1.txt`, writes one Markdown file per accepted build to `builds/`, and prints a short build-plan summary (what was written vs. skipped) to the console. In DEV each file carries the full chain (requirements · architecture · coding prompt); in PROD (`NODE_ENV=production`) it carries just the coding prompt.
+Both flows write one Markdown file per accepted build to `builds/` and print a short build-plan summary (what was written vs. skipped). In DEV each file carries the full chain (requirements · architecture · coding prompt); in PROD (`NODE_ENV=production`) it carries just the coding prompt.
 
 ---
 
@@ -105,6 +158,34 @@ schema + `.describe()` annotations in `shared.ts`). Everything past extraction r
 reported as excluded, never fed forward. Each function is explained below alongside
 **representative** output from `demo-1.txt` — the wording varies run to run since it's
 model-generated, but the shape and the status calls are stable.
+
+### `transcribeAudio`
+
+**Step 0.** Audio file → a speaker-attributed transcript in the same `Speaker  HH:MM:SS` shape
+`extractPitches` consumes, so a raw recording goes end-to-end without a manual export step.
+Returns a `string`. _(AssemblyAI — not Claude)_
+
+```ts
+import { transcribeAudio } from './pipeline/transcribe';
+
+const transcript = await transcribeAudio('recordings/brainstorm.m4a');
+const pitches = await extractPitches(transcript, { mode: 'full' });
+```
+
+| Option             | Type      | Default        | Description                                                                 |
+| ------------------ | --------- | -------------- | --------------------------------------------------------------------------- |
+| `model`            | `string`  | `'best'`       | AssemblyAI speech model (`best` · `nano` · `slam-1` · `universal`).         |
+| `diarize`          | `boolean` | `true`         | Attribute each turn to a speaker (`Speaker A` / `Speaker B` …).             |
+| `speakersExpected` | `number`  | _(auto)_       | Optional hint for how many distinct speakers to expect.                     |
+| `language`         | `string`  | _(autodetect)_ | Optional ISO-639-1 language hint.                                           |
+
+> **Why not the AI SDK here?** Anthropic has no speech-to-text model, and — as of
+> `@ai-sdk/assemblyai` 3.0.2 — the AI SDK's `experimental_transcribe` normalizes results to
+> word-level `segments` and **drops AssemblyAI's diarized `utterances`**, so speaker labels
+> can't survive that path. To keep "who spoke," Step 0 calls AssemblyAI's own SDK directly and
+> reads `utterances`, folding `{ speaker, text, start }` into the line format Step 1 expects.
+> Speaker labels arrive as generic `Speaker A` / `Speaker B`; mapping them to real names stays
+> out of scope — `extractPitches` doesn't rely on speaker turns.
 
 ### `extractPitches`
 
@@ -191,6 +272,51 @@ Product Ethics Scanner  [rejected · clear]
 > With the default `keepRejected: false`, the Product Ethics Scanner would be dropped
 > entirely rather than shown at the bottom.
 
+### `deriveSoul`
+
+**Step 1.5.** Takes one **endorsed** pitch and drafts its **soul** — the human and business
+core beneath the feature list. This is the auto-drafted starting point a `/grill-with-docs`
+session then interrogates. Returns `Soul`
+(`{ purpose, audience, monetization, cost, features, openQuestions }`). Deliberately
+opinionated, not diplomatic — a hedged draft is a failed draft. _(Opus — the reasoning-heavy
+stage, like `designArchitecture`)_
+
+```ts
+import { deriveSoul } from './pipeline/soul';
+
+// pitch is a DetailedPitch with status: 'endorsed'
+const soul = await deriveSoul(pitch);
+```
+
+| Option  | Type     | Default | Description                                                      |
+| ------- | -------- | ------- | ---------------------------------------------------------------- |
+| `model` | `string` | `OPUS`  | Anthropic model ID (see `shared.ts`: `SONNET`, `OPUS`, `HAIKU`). |
+
+Representative output for **Reading Buddy** (abridged):
+
+```
+purpose      — Kills the dead-air moment when a struggling early reader stalls on a word and
+               feels stupid. A patient, non-judgmental listener when no adult is free to sit
+               with 25 kids one-on-one.
+audience      — A 5–8 year old below-grade reader; bought by a K–2 teacher/reading specialist
+               or a parent. NOT for fluent readers (that's a library app) or pre-readers.
+monetization  — willMonetize: true · per-classroom/school site license (parents secondary).
+               Deliberately not ad-supported — ads on a COPPA-exposed kids' product are a
+               legal and trust nightmare.
+cost          — Run cost is unusually LOW: on-device processing → near-zero per-use inference,
+               no STT-per-minute bill (the offline/COPPA constraint is a margin gift). The
+               cost sink is child-voice ASR accuracy R&D + book licensing.
+features      — On-device miscue detection · tiered hints (sound-it-out → partial → word) ·
+               fully offline · a bookshelf that fills up · leveled library · a teacher view.
+openQuestions — Can on-device ASR actually hit usable accuracy on kids' voices in a noisy
+               room? How is verifiable parental/school consent handled? Schools vs. parents?
+```
+
+The `refine` step renders every endorsed idea's soul into `refine/soul-draft.md`, led by a
+baked-in instruction header so `/grill-with-docs` knows to interrogate purpose → audience →
+monetization → cost → features and attack the open questions. The grilled result is saved to
+`refine/soul-final.md`, which the build step folds into `deriveRequirements` as `context`.
+
 ### `deriveRequirements`
 
 **Step 2.** Takes one **endorsed** pitch and splits it into functional / non-functional
@@ -205,9 +331,10 @@ import { deriveRequirements } from './pipeline/requirements';
 const requirements = await deriveRequirements(pitch);
 ```
 
-| Option  | Type     | Default  | Description                                                      |
-| ------- | -------- | -------- | ---------------------------------------------------------------- |
-| `model` | `string` | `SONNET` | Anthropic model ID (see `shared.ts`: `SONNET`, `OPUS`, `HAIKU`). |
+| Option    | Type     | Default  | Description                                                                                             |
+| --------- | -------- | -------- | ------------------------------------------------------------------------------------------------------- |
+| `model`   | `string` | `SONNET` | Anthropic model ID (see `shared.ts`: `SONNET`, `OPUS`, `HAIKU`).                                        |
+| `context` | `string` | _(none)_ | Extra context folded into the prompt — the refiner flow passes the grilled soul (`soul-final.md`) here so decisions sharpened after extraction (a narrowed audience, a dropped feature) shape the requirements. |
 
 Example output for **Reading Buddy**:
 
@@ -304,15 +431,20 @@ character), and Bookshelf (persist finished books and render a shelf that fills 
 with a single short hard-coded passage...
 ```
 
-### `buildFromTranscript` (orchestrator)
+### `buildPlans` / `buildFromTranscript` (orchestrator)
 
-**Step 5.** Defined in `main.ts`. Wires every stage into one pass: extract (keeping rejected
-pitches for reporting) → endorsed-only gate → `deriveRequirements` · `designArchitecture` ·
-`buildCodingPrompt` per endorsed pitch (pitches run in parallel; each pitch's chain is
-sequential). Returns `BuildResult` (`{ built: BuildPlan[]; excluded: { name, status }[] }`).
-`main()` then writes **one Markdown file per accepted build** to `builds/` (filename slugged
-from the pitch name) — the full chain in **DEV**, just the coding prompt in **PROD**
-(`NODE_ENV=production`) — and prints a short build-plan summary of what was written vs. skipped.
+**Step 5.** Defined in `src/plan.ts` and shared by both entry points. `buildPlans(pitches, { context? })`
+applies the endorsed-only gate then runs `deriveRequirements` · `designArchitecture` ·
+`buildCodingPrompt` per endorsed pitch (pitches in parallel; each pitch's chain sequential),
+returning `BuildResult` (`{ built: BuildPlan[]; excluded: { name, status }[] }`). Both entry
+points then write **one Markdown file per accepted build** to `builds/` (filename slugged from
+the pitch name) — the full chain in **DEV**, just the coding prompt in **PROD**
+(`NODE_ENV=production`) — and print a short summary of what was written vs. skipped.
+
+- **`main.ts`** (`npm start`) — the transcript-first flow. Uses `buildFromTranscript(transcript)`
+  (a thin wrapper that extracts, keeping rejected pitches for reporting, then calls `buildPlans`).
+- **`build.ts`** (`npm run build-plan`) — the refiner flow. Reads `refine/pitches.json` + the
+  grilled `refine/soul-final.md` (falling back to the draft) and calls `buildPlans(pitches, { context: soul })`.
 
 ```ts
 const { built, excluded } = await buildFromTranscript(transcript);
@@ -338,76 +470,23 @@ Skipped (2):
 
 - [Vercel AI SDK](https://sdk.vercel.ai) (`ai`) — `generateText` + structured output
 - [`@ai-sdk/anthropic`](https://www.npmjs.com/package/@ai-sdk/anthropic) — Claude provider
+- [`assemblyai`](https://www.npmjs.com/package/assemblyai) — speech-to-text + diarization for Step 0 (the one non-AI-SDK stage; see [`transcribeAudio`](#transcribeaudio) for why)
 - [Zod](https://zod.dev) — schema definition + inferred TypeScript types
 - [`tsx`](https://github.com/privatenumber/tsx) — run TypeScript directly, no build step
+- Two Claude Code **skills** (`.claude/skills/`) — `refine-idea` and `plan-from-soul` — that wrap the CLI steps and manage the handoff to `/grill-with-docs`
 
 ---
 
-## Future plans
+## What's next
 
-Same pipeline shape, one stage earlier. Today the pipeline starts from a text transcript;
-the plan is to start from the **raw recording** and produce that transcript ourselves using
-the AI SDK's [transcription support](https://sdk.vercel.ai/docs/ai-sdk-core/transcription)
-(`experimental_transcribe`), so a meeting recording can go end-to-end without a manual
-export step.
+The recording → soul → build-plan flow is in place. Natural next steps:
 
-### `transcribeAudio` (planned · 🚧 not implemented)
-
-**Step 0.** Audio file → a speaker-attributed transcript in the same `Speaker  HH:MM:SS`
-shape `extractPitches` already consumes, then hands straight off to **Step 1**. Returns a
-`string` (the formatted transcript).
-
-> **Reality check:** `experimental_transcribe` returns `text` plus timestamped `segments`
-> (`{ text, startSecond, endSecond }`), `language`, and `durationInSeconds` — but **plain
-> Whisper gives no speaker labels**, so it can't reproduce the Zoom `Speaker` attribution on
-> its own. To recover "who spoke," this stage targets a **diarization-capable provider**
-> (AssemblyAI / Deepgram / Gladia) via `providerOptions`, then folds the diarized segments
-> into the line format. Anthropic has no speech-to-text model, so this is the first stage
-> that reaches for a second provider.
-
-```ts
-import { experimental_transcribe as transcribe } from 'ai';
-import { assemblyai } from '@ai-sdk/assemblyai';
-import { readFile } from 'node:fs/promises';
-
-// Planned wrapper — formats diarized segments into the transcript shape Step 1 expects.
-export async function transcribeAudio(
-  path: string,
-  opts: { model?: string; diarize?: boolean; language?: string } = {},
-): Promise<string> {
-  const { text, segments } = await transcribe({
-    model: assemblyai.transcription(opts.model ?? 'best'),
-    audio: await readFile(path),
-    providerOptions: { assemblyai: { speakerLabels: opts.diarize ?? true } },
-  });
-  // → join diarized segments into "Speaker  HH:MM:SS\n<turn>" blocks
-  return formatAsTranscript(text, segments);
-}
-
-// End-to-end: recording → transcript → pitches
-const transcript = await transcribeAudio('recordings/brainstorm.m4a');
-const pitches = await extractPitches(transcript, { mode: 'full' });
-```
-
-| Option     | Type      | Default        | Description                                                                                                  |
-| ---------- | --------- | -------------- | ------------------------------------------------------------------------------------------------------------ |
-| `model`    | `string`  | `'best'`       | Transcription model on a diarization-capable provider (Anthropic has no STT model, so Step 0 brings its own). |
-| `diarize`  | `boolean` | `true`         | Attribute each turn to a speaker, reproducing the `Speaker  HH:MM:SS` format Step 1 expects.                  |
-| `language` | `string`  | _(autodetect)_ | Optional ISO language hint; otherwise inferred from `result.language`.                                       |
-
-Example output (what Step 0 would hand to `extractPitches`):
-
-```
-Product Brainstorm — Recording
-Transcribed by AI SDK (experimental_transcribe)
-
-Speaker A  00:00:05
-Okay I think we're recording now. Is it recording? Yeah. Okay we're good.
-
-Speaker B  00:00:11
-We're good. Sloane you there?
-```
-
-> Speaker labels arrive as generic `Speaker A` / `Speaker B` from diarization; mapping them
-> to real names (when the recording doesn't announce them) stays out of scope — `extractPitches`
-> already works without relying on speaker turns.
+- **Name mapping** — diarization yields generic `Speaker A` / `Speaker B`; a light pass could
+  map them to real names when the recording announces them ("okay, Maya here"). Out of scope
+  for now — `extractPitches` doesn't rely on speaker turns.
+- **Soul across ideas** — today `deriveSoul` runs per endorsed pitch; a brainstorm-level pass
+  could spot when two "ideas" are really one product, or surface a shared thesis.
+- **Grill → build in one skill** — `/refine-idea` and `/plan-from-soul` are split so the human
+  grilling sits cleanly in the middle; if the grill ever runs headless, they could merge.
+- **Round-trip the grilled soul** — feed `soul-final.md` back into `deriveSoul` context so a
+  re-run sharpens rather than redrafts.

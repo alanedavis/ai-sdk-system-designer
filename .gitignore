@@ -1,6 +1,13 @@
 /node_modules
 .env
-.claude
+
+# Ignore local Claude Code state, but keep the project skills (part of the product)
+.claude/*
+!.claude/skills/
 
 # Generated output — see demo-builds/ for a sample run
 /builds
+
+# Recordings (raw audio) and the refine flow's generated artifacts
+/recordings
+/refine

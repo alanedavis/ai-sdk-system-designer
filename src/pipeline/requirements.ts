@@ -6,6 +6,9 @@ import type { DetailedPitch } from './extract';
 // Interfaces
 export interface Options {
   model?: string;
+  // Extra context to fold in — e.g. the grilled soul brief (refine/soul-final.md), so
+  // requirements reflect decisions sharpened after extraction rather than the raw pitch alone.
+  context?: string;
 }
 
 // System const
@@ -36,15 +39,18 @@ export const deriveRequirements = async (
   pitch: DetailedPitch,
   opts: Options = {},
 ): Promise<Requirements> => {
-  const { model = SONNET } = opts;
+  const { model = SONNET, context } = opts;
 
   const points = pitch.points.map((p) => `- (${p.type}) ${p.text}`).join('\n');
+  const contextBlock = context
+    ? `\nSharpened soul (grilled — treat as the source of truth where it conflicts with the raw pitch):\n${context}\n`
+    : '';
   const prompt = `Pitch: ${pitch.name}
 Summary: ${pitch.summary}
 
 Points:
 ${points}
-
+${contextBlock}
 Derive the functional and non-functional requirements for a localhost prototype of this pitch.`;
 
   const { output } = await generateText({
